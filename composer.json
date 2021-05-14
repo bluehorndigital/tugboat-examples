@@ -22,6 +22,7 @@
         "drupal/redis": "^1.5",
         "drupal/search_api": "^1.19",
         "drupal/search_api_solr": "^4.1",
+        "drush/drush": "^10.5",
         "vlucas/phpdotenv": "^5.3"
     },
     "conflict": {
