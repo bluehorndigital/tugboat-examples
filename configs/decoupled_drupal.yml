@@ -1,14 +1,14 @@
+# Can we setup traefik to proxy to `drupal` and `frontend`?
+# The `expose` option leaves unpredictable URLs for the frontend to talk to the backend.
+# https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/expose-a-service-http-port/
 services:
-  # https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/clone-git-repositories-into-your-services/
-  entrypoint:
-    # Can we setup traefik to proxy to `drupal` and `frontend`?
-    # Wait, there is an expose!
-    # https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/expose-a-service-http-port/
-    image: tugboatqa/traefik:livarot
-    default: true
-    aliases: ['app', 'api']
+  # entrypoint:
+    # image: tugboatqa/traefik:livarot
+    # default: true
+    # aliases: ['app', 'api']
   drupal:
     image: tugboatqa/php:7.4-apache
+    expose: 80
     depends: mysql
     checkout: true
     commands:
@@ -18,21 +18,31 @@ services:
         - a2enmod rewrite
         - docker-php-ext-install opcache
         # Link the project docroot to the defined Apache docroot in Tugboat.
-        - ln -snf "${TUGBOAT_ROOT}/web" "${DOCROOT}"
+        - ln -snf "${TUGBOAT_ROOT}/drupal/web" "${DOCROOT}"
 
         # Ensure the storage directory the web server for writing.
-        - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/drupal/web/sites/default
       # Commands that build or generate the actual site
       build:
-        - cp .env.tugboat .env
+        # - cp ${TUGBOAT_ROOT}/drupal/.env.tugboat ${TUGBOAT_ROOT}/drupal/.env
 
         # Install dependencies
-        - composer install --no-dev --prefer-dist
+        - composer install --no-dev --prefer-dist --working-dir ${TUGBOAT_ROOT}/drupal
+        - php vendor/bin/drush updb --yes
+        - php ${TUGBOAT_ROOT}/drupal/vendor/bin/drush en jsonapi --yes
 
-        - php vendor/bin/drush si standard --account-pass=admin --yes
+        # Copy over the Umami image files
+        - mkdir ${TUGBOAT_ROOT}/web/sites/default/files
+        - cp -r ${TUGBOAT_ROOT}/web/core/profiles/demo_umami/modules/demo_umami_content/default_content/images ${TUGBOAT_ROOT}/web/sites/default/files
+
+        # Ensure permissions on the site/default directory.
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+
+        - php vendor/bin/drush cr
   frontend:
     image: tugboatqa/httpd:2.4
-    checkout: true
+    default: true
+    # checkout: true
     commands:
       # Commands that set up the basic Preview.
       init:
@@ -41,8 +51,14 @@ services:
         - apt-get install -y nodejs
         - npm install --global yarn
       build:
-        - yarn install
-        - yarn build
-        - ln -snf "${TUGBOAT_ROOT}/build" "${DOCROOT}"
+        - yarn install --cwd ${TUGBOAT_ROOT}/my-app
+        - cd ${TUGBOAT_ROOT}/my-app && yarn run build
+        - ln -snf "${TUGBOAT_ROOT}/my-app/build" "${DOCROOT}"
   mysql:
     image: tugboatqa/mysql:5.7
+    commands:
+      init:
+        # Download a database dump to import.
+        - curl -o /tmp/umami.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami.sql.gz
+        - zcat /tmp/umami.sql.gz | mysql tugboat
+        - rm /tmp/umami.sql.gz
