@@ -1,0 +1,19 @@
+{
+    "name": "bluehorndigital/tugboat-examples",
+    "description": "Tugboat examples",
+    "type": "project",
+    "require": {
+        "guzzlehttp/guzzle": "^7.3",
+        "symfony/yaml": "^5.2",
+        "vlucas/phpdotenv": "^5.3",
+        "symfony/console": "^5.2"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Matt Glaman",
+            "email": "matt@bluehorn.digital"
+        }
+    ],
+    "minimum-stability": "stable"
+}

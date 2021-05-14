@@ -1,0 +1,55 @@
+services:
+  php:
+    image: tugboatqa/php:7.4-apache
+    default: true
+    # We don't depend on Redis or Solr as they are not needed until runtime.
+    depends: mysql
+    commands:
+      # Commands that set up the basic Preview.
+      init:
+        # Tugboat sets up a minimal environment, you must add requirements.
+        - a2enmod rewrite
+        - docker-php-ext-install opcache
+
+        # Ensure the Redis extension is availale for caching.
+        - pecl install redis && docker-php-ext-enable redis
+        # Add APCu for better performance.
+        - pecl install apcu && docker-php-ext-enable apcu
+
+        # Link the project docroot to the defined Apache docroot in Tugboat.
+        - ln -snf "${TUGBOAT_ROOT}/web" "${DOCROOT}"
+
+        # Ensure the storage directory the web server for writing.
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+
+      # Commands that import data or other assets into a Service
+      update: {  } # Here is where we'd copy in files from staging.
+
+      # Commands that build or generate the actual site
+      build:
+        - cp .env.tugboat .env
+
+        # Install dependencies
+        - composer install --no-dev --prefer-dist
+
+        - php vendor/bin/drush si demo_umami --account-pass=admin --yes
+        # Not required to be installed, but when it is installed the status report displays.
+        - php vendor/bin/drush en redis --yes
+
+        # Setup Solr
+        - php vendor/bin/drush en search_api search_api_solr search_api_solr_admin search_api_solr_defaults --yes
+        # Normally we'd do this in a settings.php override, but this is a demo.
+        - php vendor/bin/drush config:set search_api.server.default_solr_server backend_config.connector_config.host solr
+
+        # Since we performed a site install on the command line, we need to
+        # re-fix permissions.
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+  mysql:
+    image: tugboatqa/mysql:5.7
+  redis:
+    image: tugboatqa/redis:6
+  solr:
+    image: tugboatqa/solr:7
+    commands:
+      init:
+        - solr create_core -c drupal

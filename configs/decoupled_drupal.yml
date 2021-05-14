@@ -1,0 +1,46 @@
+services:
+  # https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/clone-git-repositories-into-your-services/
+  entrypoint:
+    # Can we setup traefik to proxy to `drupal` and `frontend`?
+    image: tugboatqa/traefik:livarot
+    default: true
+    aliases: ['app', 'api']
+  drupal:
+    image: tugboatqa/php:7.4-apache
+    depends: mysql
+    checkout: true
+    commands:
+      # Commands that set up the basic Preview.
+      init:
+        # Tugboat sets up a minimal environment, you must add requirements.
+        - a2enmod rewrite
+        - docker-php-ext-install opcache
+        # Link the project docroot to the defined Apache docroot in Tugboat.
+        - ln -snf "${TUGBOAT_ROOT}/web" "${DOCROOT}"
+
+        # Ensure the storage directory the web server for writing.
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+      # Commands that build or generate the actual site
+      build:
+        - cp .env.tugboat .env
+
+        # Install dependencies
+        - composer install --no-dev --prefer-dist
+
+        - php vendor/bin/drush si standard --account-pass=admin --yes
+  frontend:
+    image: tugboatqa/httpd:2.4
+    checkout: true
+    commands:
+      # Commands that set up the basic Preview.
+      init:
+        # Adding the NodeSource APT repository AND the PGP key for verifying packages
+        - curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+        - apt-get install -y nodejs
+        - npm install --global yarn
+      build:
+        - yarn install
+        - yarn build
+        - ln -snf "${TUGBOAT_ROOT}/build" "${DOCROOT}"
+  mysql:
+    image: tugboatqa/mysql:5.7

@@ -1,0 +1,46 @@
+services:
+  php:
+    image: tugboatqa/php:7.4-apache
+    default: true
+    depends: mysql
+    commands:
+      # Commands that set up the basic Preview.
+      init:
+        # Adding the NodeSource APT repository AND the PGP key for verifying packages
+        - curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+        - apt-get install -y nodejs
+
+        # Use Yarn over npm
+        - npm install --global yarn
+
+        # Tugboat sets up a minimal environment, you must add requirements.
+        - a2enmod rewrite
+
+        # You should add opcache, we cut it out here to make build faster.
+        # - docker-php-ext-install opcache
+
+        # Link the project docroot to the defined Apache docroot in Tugboat.
+        - ln -snf "${TUGBOAT_ROOT}/public" "${DOCROOT}"
+
+        # Ensure the storage directory the web server for writing.
+        - chown -R www-data:www-data ${TUGBOAT_ROOT}/storage
+
+      # Commands that import data or other assets into a Service
+      update: {  } # Here is where we'd copy in files from staging.
+
+      # Commands that build or generate the actual site
+      build:
+        - cp .env.tugboat .env
+
+        # Install dependencies
+        - composer install --no-dev --prefer-dist
+        - yarn install
+
+        # Run migrations
+        - php artisan key:generate
+        - php artisan migrate
+
+        # Compile assets
+        - yarn run production
+  mysql:
+    image: tugboatqa/mysql:5.7

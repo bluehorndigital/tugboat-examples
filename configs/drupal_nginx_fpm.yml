@@ -1,0 +1,4 @@
+# Let's setup nginx with php-fpm!
+# php tugboat.php drupal_extra_services drupal_nginx_fpm
+# https://github.com/TugboatQA/dockerfiles/blob/main/nginx/1.20.0/share/Makefile
+# $(MAKE) -C /usr/share/tugboat install-php-7.4 install-composer
