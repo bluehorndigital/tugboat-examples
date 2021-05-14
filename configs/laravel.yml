@@ -44,3 +44,5 @@ services:
         - yarn run production
   mysql:
     image: tugboatqa/mysql:5.7
+  # @todo: add redis for CACHE_DRIVER and SESSION_DRIVER
+  # https://laravel.com/docs/8.x/cache#redis

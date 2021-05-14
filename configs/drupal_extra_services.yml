@@ -32,17 +32,15 @@ services:
         # Install dependencies
         - composer install --no-dev --prefer-dist
 
-        - php vendor/bin/drush updb --yes
+        # Install any schema updates.
+        - cd ${TUGBOAT_ROOT}/drupal && php vendor/bin/drush updb --yes
+        # In a real site, you'd also run a config import
+        # - php ${TUGBOAT_ROOT}/drupal/vendor/bin/drush cim --yes
 
-        # Not required to be installed, but when it is installed the status report displays.
-        - php vendor/bin/drush en redis --yes
-
-        # Setup Solr
-        - php vendor/bin/drush en search_api search_api_solr search_api_solr_admin search_api_solr_defaults --yes
         # Normally we'd do this in a settings.php override, but this is a demo.
         - php vendor/bin/drush config:set search_api.server.default_solr_server backend_config.connector_config.host solr
 
-        # Copy over the Umami image files
+        # Copy over the Umami image files, normally you would download from an archive in `init` and rsync in build.
         - mkdir ${TUGBOAT_ROOT}/web/sites/default/files
         - cp -r ${TUGBOAT_ROOT}/web/core/profiles/demo_umami/modules/demo_umami_content/default_content/images ${TUGBOAT_ROOT}/web/sites/default/files
 
@@ -55,9 +53,9 @@ services:
     commands:
       init:
         # Download a database dump to import.
-        - curl -o /tmp/umami.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami.sql.gz
-        - zcat /tmp/umami.sql.gz | mysql tugboat
-        - rm /tmp/umami.sql.gz
+        - curl -o /tmp/database.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami-extra-services.sql.gz
+        - zcat /tmp/database.sql.gz | mysql tugboat
+        - rm /tmp/database.sql.gz
   redis:
     image: tugboatqa/redis:6
   solr:

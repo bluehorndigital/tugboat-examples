@@ -28,17 +28,18 @@ services:
 
         # Install dependencies
         - composer install --no-dev --prefer-dist --working-dir ${TUGBOAT_ROOT}/drupal
-        - php vendor/bin/drush updb --yes
-        - php ${TUGBOAT_ROOT}/drupal/vendor/bin/drush en jsonapi --yes
 
-        # Copy over the Umami image files
+        # Install any schema updates.
+        - cd ${TUGBOAT_ROOT}/drupal && php vendor/bin/drush updb --yes
+        # In a real site, you'd also run a config import
+        # - php ${TUGBOAT_ROOT}/drupal/vendor/bin/drush cim --yes
+
+        # Copy over the Umami image files, normally you would download from an archive in `init` and rsync in build.
         - mkdir ${TUGBOAT_ROOT}/web/sites/default/files
         - cp -r ${TUGBOAT_ROOT}/web/core/profiles/demo_umami/modules/demo_umami_content/default_content/images ${TUGBOAT_ROOT}/web/sites/default/files
 
         # Ensure permissions on the site/default directory.
         - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
-
-        - php vendor/bin/drush cr
   frontend:
     image: tugboatqa/httpd:2.4
     default: true
@@ -59,6 +60,6 @@ services:
     commands:
       init:
         # Download a database dump to import.
-        - curl -o /tmp/umami.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami.sql.gz
-        - zcat /tmp/umami.sql.gz | mysql tugboat
-        - rm /tmp/umami.sql.gz
+        - curl -o /tmp/database.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami-jsonapi.sql.gz
+        - zcat /tmp/database.sql.gz | mysql tugboat
+        - rm /tmp/database.sql.gz
