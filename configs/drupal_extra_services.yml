@@ -14,7 +14,7 @@ services:
         # Ensure the Redis extension is availale for caching.
         - pecl install redis && docker-php-ext-enable redis
         # Add APCu for better performance.
-        - pecl install apcu && docker-php-ext-enable apcu
+        # - pecl install apcu && docker-php-ext-enable apcu
 
         # Link the project docroot to the defined Apache docroot in Tugboat.
         - ln -snf "${TUGBOAT_ROOT}/web" "${DOCROOT}"
@@ -32,7 +32,8 @@ services:
         # Install dependencies
         - composer install --no-dev --prefer-dist
 
-        - php vendor/bin/drush si demo_umami --account-pass=admin --yes
+        - php vendor/bin/drush updb --yes
+
         # Not required to be installed, but when it is installed the status report displays.
         - php vendor/bin/drush en redis --yes
 
@@ -41,15 +42,27 @@ services:
         # Normally we'd do this in a settings.php override, but this is a demo.
         - php vendor/bin/drush config:set search_api.server.default_solr_server backend_config.connector_config.host solr
 
-        # Since we performed a site install on the command line, we need to
-        # re-fix permissions.
+        # Copy over the Umami image files
+        - mkdir ${TUGBOAT_ROOT}/web/sites/default/files
+        - cp -r ${TUGBOAT_ROOT}/web/core/profiles/demo_umami/modules/demo_umami_content/default_content/images ${TUGBOAT_ROOT}/web/sites/default/files
+
+        # Ensure permissions on the site/default directory.
         - chown -R www-data:www-data ${TUGBOAT_ROOT}/web/sites/default
+
+        - php vendor/bin/drush cr
   mysql:
     image: tugboatqa/mysql:5.7
+    commands:
+      init:
+        # Download a database dump to import.
+        - curl -o /tmp/umami.sql.gz https://bhcdn.sfo2.digitaloceanspaces.com/tugboat/umami.sql.gz
+        - zcat /tmp/umami.sql.gz | mysql tugboat
+        - rm /tmp/umami.sql.gz
   redis:
     image: tugboatqa/redis:6
   solr:
     image: tugboatqa/solr:7
     commands:
       init:
-        - solr create_core -c drupal
+        # Solr has issues creating core as root.
+        - su -s /bin/sh -c 'solr create_core -c drupal -force' solr

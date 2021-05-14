@@ -2,6 +2,8 @@ services:
   # https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/clone-git-repositories-into-your-services/
   entrypoint:
     # Can we setup traefik to proxy to `drupal` and `frontend`?
+    # Wait, there is an expose!
+    # https://docs.tugboat.qa/setting-up-services/how-to-set-up-services/expose-a-service-http-port/
     image: tugboatqa/traefik:livarot
     default: true
     aliases: ['app', 'api']
